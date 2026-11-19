@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>抽選結果</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;min-height:100%}
+  body{font-family:"Hiragino Kaku Gothic ProN","Meiryo",sans-serif;color:#fff;overflow-x:hidden;
+    background:radial-gradient(circle at 20% 10%,#ff2a6d55,transparent 45%),
+               radial-gradient(circle at 80% 90%,#7b2cff66,transparent 50%),
+               linear-gradient(160deg,#1a0633,#2b0a3d 50%,#0b1440);
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:28px 18px 40px}
+  #fx{position:fixed;inset:0;pointer-events:none;z-index:60}
+  .stars{position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:radial-gradient(2px 2px at 20% 30%,#fff8,transparent),radial-gradient(2px 2px at 70% 20%,#fff6,transparent),
+      radial-gradient(1.5px 1.5px at 40% 80%,#fff7,transparent),radial-gradient(2px 2px at 85% 60%,#ffd60099,transparent),
+      radial-gradient(1.5px 1.5px at 10% 70%,#ff4fa399,transparent);animation:twinkle 4s ease-in-out infinite alternate}
+  @keyframes twinkle{to{opacity:.4}}
+  .wrap{position:relative;z-index:1;width:100%;max-width:420px}
+  header{text-align:center}
+  .badge{display:inline-block;font-size:.75rem;letter-spacing:.3em;padding:5px 14px;border-radius:999px;border:1px solid #ffd60088;color:#ffd600;margin-bottom:10px}
+  h1{margin:0;font-size:2.3rem;font-weight:900;line-height:1.15;letter-spacing:.05em;
+    background:linear-gradient(90deg,#ffd600,#ff4fa3,#7bdcff,#ffd600);background-size:300% 100%;
+    -webkit-background-clip:text;background-clip:text;color:transparent;animation:flow 5s linear infinite;filter:drop-shadow(0 0 12px #ff4fa366)}
+  @keyframes flow{to{background-position:300% 0}}
+  .lead{margin:8px 0 22px;color:#ffffffb0;font-size:.9rem}
+  @property --a{syntax:'<angle>';inherits:false;initial-value:0deg}
+  .card{position:relative;border-radius:26px;padding:3px;
+    background:conic-gradient(from var(--a),#ff2a6d,#ffd600,#7bdcff,#b56cff,#ff2a6d);animation:spin 6s linear infinite}
+  @keyframes spin{to{--a:360deg}}
+  .inner{border-radius:23px;padding:26px 20px;background:rgba(20,8,40,.88);backdrop-filter:blur(10px)}
+  label{display:block;font-size:.85rem;color:#ffffffaa;margin-bottom:8px;text-align:center}
+  input{width:100%;font-size:2.6rem;font-weight:900;letter-spacing:.15em;text-align:center;color:#fff;
+    background:#ffffff10;border:2px solid #ffffff30;border-radius:16px;padding:12px;transition:.25s;font-family:inherit}
+  input::placeholder{color:#ffffff40;font-size:1.4rem;letter-spacing:.1em}
+  input:focus{outline:none;border-color:#ffd600;box-shadow:0 0 0 4px #ffd60033,0 0 24px #ffd60055}
+  .mainBtn{position:relative;overflow:hidden;width:100%;margin-top:16px;font-size:1.35rem;font-weight:900;letter-spacing:.2em;
+    padding:16px;border:none;border-radius:999px;color:#fff;cursor:pointer;font-family:inherit;
+    background:linear-gradient(90deg,#ff2a6d,#ff4fa3,#ff8a00,#ff2a6d);background-size:300% 100%;
+    box-shadow:0 6px 0 #a3003d,0 10px 28px #ff2a6d66;animation:flow 3s linear infinite}
+  .mainBtn::after{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;
+    background:linear-gradient(100deg,transparent,#fff8,transparent);animation:sweep 2.4s ease-in-out infinite}
+  @keyframes sweep{0%,55%{left:-60%}100%{left:130%}}
+  .mainBtn:active{transform:translateY(5px);box-shadow:0 1px 0 #a3003d}
+  .soundSw{display:block;margin:14px auto 0;background:none;border:1px solid #ffffff40;color:#ffffffaa;
+    border-radius:999px;padding:6px 16px;font-size:.8rem;font-family:inherit}
+  #res{margin-top:22px;min-height:60px;display:flex;align-items:center;justify-content:center}
+  .hint{color:#ffffff60;font-size:.9rem}
+  .err{color:#ff8fb1;font-weight:bold}
+  .mini{width:100%;text-align:center;border-radius:16px;padding:12px;font-weight:bold}
+  .mini.win{background:linear-gradient(135deg,#ffd600,#ff2a6d);color:#3a0010}
+  .mini.lose{background:#ffffff12;color:#ffffffaa}
+  footer{margin-top:26px;text-align:center;font-size:.75rem;color:#ffffff60}
+
+  /* ===== ドキドキ演出（全画面） ===== */
+  #stage{position:fixed;inset:0;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 50% 45%,#2b0a3dee,#000 75%);overflow:hidden}
+  #stage.show{display:flex;animation:fadeIn .4s ease}
+  @keyframes fadeIn{from{opacity:0}}
+  /* スポットライト */
+  .spot{position:absolute;top:-10%;width:60vw;height:130%;background:linear-gradient(#ffffff22,transparent 80%);
+    clip-path:polygon(45% 0,55% 0,100% 100%,0 100%);transform-origin:50% 0;mix-blend-mode:screen}
+  .spot.l{left:-10%;animation:swingL 1.4s ease-in-out infinite alternate}
+  .spot.r{right:-10%;animation:swingR 1.4s ease-in-out infinite alternate}
+  @keyframes swingL{from{transform:rotate(-25deg)}to{transform:rotate(15deg)}}
+  @keyframes swingR{from{transform:rotate(25deg)}to{transform:rotate(-15deg)}}
+  #stage.fast .spot{animation-duration:.35s}
+  /* 心拍リング */
+  .pulse{position:absolute;left:50%;top:45%;width:200px;height:200px;margin:-100px;border-radius:50%;border:4px solid #ff2a6d;opacity:0;pointer-events:none}
+  .pulse.go{animation:pulse .9s ease-out forwards}
+  @keyframes pulse{from{transform:scale(.6);opacity:.9}to{transform:scale(2.6);opacity:0}}
+  /* 番号 */
+  .myNo{position:relative;font-size:.95rem;color:#ffffffaa;letter-spacing:.2em;margin-bottom:6px}
+  .myNo b{display:block;font-size:2.4rem;color:#fff;letter-spacing:.1em}
+  /* 宝箱（ボックス） */
+  .box{position:relative;width:170px;height:150px;margin:30px 0 20px}
+  .box .body{position:absolute;bottom:0;left:0;right:0;height:100px;border-radius:10px;
+    background:linear-gradient(135deg,#ff2a6d,#b0004a);box-shadow:inset 0 -10px 0 #00000033,0 10px 30px #ff2a6d88}
+  .box .lid{position:absolute;top:22px;left:-8px;right:-8px;height:38px;border-radius:10px;
+    background:linear-gradient(135deg,#ff4fa3,#d6005a);box-shadow:0 4px 0 #00000033;transform-origin:10% 100%;transition:transform .5s cubic-bezier(.3,1.6,.5,1)}
+  .box .rib{position:absolute;left:50%;width:26px;margin-left:-13px;background:#ffd600}
+  .box .body .rib{top:0;bottom:0}
+  .box .lid .rib{top:0;bottom:0}
+  .box .bow{position:absolute;top:-6px;left:50%;width:70px;height:34px;margin-left:-35px}
+  .box .bow::before,.box .bow::after{content:"";position:absolute;top:0;width:34px;height:30px;border:7px solid #ffd600;border-radius:50% 50% 10% 50%}
+  .box .bow::before{left:0;transform:rotate(-15deg)}
+  .box .bow::after{right:0;transform:scaleX(-1) rotate(-15deg)}
+  .box.s1{animation:shake1 .5s ease-in-out infinite}
+  .box.s2{animation:shake2 .18s linear infinite}
+  .box.s3{animation:shake3 .07s linear infinite}
+  @keyframes shake1{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+  @keyframes shake2{0%,100%{transform:rotate(-7deg) translateY(0)}50%{transform:rotate(7deg) translateY(-6px)}}
+  @keyframes shake3{0%{transform:translate(-5px,2px) rotate(-10deg) scale(1.05)}50%{transform:translate(5px,-4px) rotate(10deg) scale(1.08)}100%{transform:translate(-5px,2px) rotate(-10deg) scale(1.05)}}
+  .box.open .lid{transform:translateY(-60px) rotate(-60deg)}
+  .box.open{animation:none}
+  .box .glow{position:absolute;left:50%;top:40%;width:10px;height:10px;margin:-5px;border-radius:50%;opacity:0}
+  .box.open .glow{animation:glowOut .7s ease-out forwards}
+  @keyframes glowOut{to{opacity:1;box-shadow:0 0 120px 80px #fff}}
+  /* カウント・メッセージ */
+  .tease{position:relative;font-size:1.5rem;font-weight:900;min-height:2.2em;text-align:center;letter-spacing:.1em}
+  .tease span{display:inline-block;animation:charIn .45s cubic-bezier(.2,1.8,.4,1) both}
+  @keyframes charIn{from{opacity:0;transform:translateY(16px) scale(.3)}to{opacity:1;transform:none}}
+  .count{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);font-size:9rem;font-weight:900;color:#ffd600;
+    text-shadow:0 0 30px #ff8a00;pointer-events:none;opacity:0}
+  .count.go{animation:count .8s ease-out forwards}
+  @keyframes count{0%{opacity:0;transform:translate(-50%,-50%) scale(2.5)}20%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-50%) scale(.6)}}
+  /* フラッシュ */
+  .flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:55}
+  .flash.go{animation:flash .7s ease-out}
+  @keyframes flash{0%{opacity:1}100%{opacity:0}}
+  /* 結果カード */
+  .final{position:relative;width:min(88vw,380px);text-align:center;border-radius:24px;padding:26px 16px;overflow:hidden;display:none}
+  .final.show{display:block}
+  .final .num{display:block;font-size:4.4rem;font-weight:900;line-height:1;margin:6px 0 10px}
+  .final.win{background:linear-gradient(145deg,#ffd600,#ff9800 55%,#ff2a6d);color:#3a0010;animation:winIn .9s cubic-bezier(.2,1.8,.4,1);box-shadow:0 0 60px #ffd600cc}
+  .final.win::before{content:"";position:absolute;left:50%;top:50%;width:700px;height:700px;margin:-350px;
+    background:repeating-conic-gradient(#ffffff55 0 10deg,transparent 10deg 20deg);animation:rot 8s linear infinite}
+  .final.win > *{position:relative}
+  .final.win .num{color:#fff;text-shadow:0 4px 0 #b00020,0 0 20px #fff}
+  .final .t1{font-size:2rem;font-weight:900;letter-spacing:.1em}
+  .final .t2{font-size:.9rem;font-weight:bold;margin-top:6px}
+  .final.lose{background:#1c1030;border:1px solid #ffffff30;animation:loseIn .7s ease}
+  .final.lose .num{color:#ffffff90}
+  .final.lose .t1{font-size:1.4rem;color:#ffffffcc}
+  .final.lose .t2{color:#ffffff80}
+  @keyframes rot{to{transform:rotate(360deg)}}
+  @keyframes winIn{0%{transform:scale(.1) rotate(-20deg);opacity:0}100%{transform:none;opacity:1}}
+  @keyframes loseIn{0%{transform:translateY(30px);opacity:0}60%{transform:translateX(-8px)}80%{transform:translateX(5px)}100%{transform:none;opacity:1}}
+  .close{position:relative;margin-top:22px;background:#ffffff20;border:1px solid #ffffff50;color:#fff;border-radius:999px;
+    padding:10px 28px;font-size:1rem;font-family:inherit;display:none}
+  .close.show{display:inline-block;animation:fadeIn .5s ease 1s both}
+</style>
+</head>
+<body>
+<div class="stars"></div>
+<div class="wrap">
+  <header>
+    <div class="badge">LOTTERY RESULT</div>
+    <h1>🎉 抽選結果<br>チェック</h1>
+    <p class="lead">お手元の抽選券の番号を入力してください</p>
+  </header>
+  <div class="card"><div class="inner">
+    <label for="t">抽選券番号</label>
+    <input id="t" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="例）123" autocomplete="off">
+    <button class="mainBtn" id="b">照合する</button>
+    <div id="res"><div class="hint">▲ 番号を入れて「照合する」をタップ</div></div>
+    <button class="soundSw" id="snd">🔊 音：ON</button>
+  </div></div>
+  <footer>※ 当選番号は抽選終了時点のものです</footer>
+</div>
+
+<!-- ドキドキ演出ステージ -->
+<div id="stage">
+  <div class="spot l"></div><div class="spot r"></div>
+  <div class="pulse" id="pulse"></div>
+  <div class="myNo">あなたの番号<b id="myNo"></b></div>
+  <div class="box" id="box">
+    <div class="body"><div class="rib"></div></div>
+    <div class="lid"><div class="rib"></div><div class="bow"></div></div>
+    <div class="glow"></div>
+  </div>
+  <div class="tease" id="tease"></div>
+  <div class="count" id="count"></div>
+  <div class="final" id="final"></div>
+  <button class="close" id="close">もどる</button>
+</div>
+<div class="flash" id="flash"></div>
+<canvas id="fx"></canvas>
+
+<script>
+/* ★当選番号（今はダミー。あとで抽選機から出力した番号に置き換え） */
+var WIN = new Set([3, 12, 25, 77, 123, 256, 500, 777, 1024, 1700]);
+
+var $ = function(id){ return document.getElementById(id); };
+var COLORS = ["#ff2a6d","#ffd600","#7bdcff","#b56cff","#ff8a00","#4cff9a"];
+var busy = false, soundOn = true, actx = null;
+var HINT = '<div class="hint">▲ 番号を入れて「照合する」をタップ</div>';
+
+/* ===== 効果音 ===== */
+function ctx(){ actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === "suspended") actx.resume(); return actx; }
+function tone(f, len, type, vol, slide){
+  if (!soundOn) return;
+  var c = ctx(), t = c.currentTime, o = c.createOscillator(), g = c.createGain();
+  o.type = type || "sine"; o.frequency.setValueAtTime(f, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + len);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + len);
+  o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + len + .05);
+}
+function noise(len, vol, freq){
+  if (!soundOn) return;
+  var c = ctx(), t = c.currentTime, n = Math.ceil(c.sampleRate * len), b = c.createBuffer(1, n, c.sampleRate), d = b.getChannelData(0);
+  for (var i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  var s = c.createBufferSource(); s.buffer = b;
+  var f = c.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = freq; f.Q.value = .7;
+  var g = c.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + len);
+  s.connect(f); f.connect(g); g.connect(c.destination); s.start(t);
+}
+function heart(){ tone(70, .18, "sine", .9, 40); setTimeout(function(){ tone(60, .15, "sine", .6, 35); }, 140); }
+function snare(v){ tone(200, .06, "triangle", v * .6, 140); noise(.08, v, 1800); }
+function crash(){ noise(1.6, .7, 7000); noise(.6, .5, 3500); }
+function fanfare(){ [[523,0],[659,120],[784,240],[1047,380]].forEach(function(n){ setTimeout(function(){ tone(n[0], .5, "triangle", .35); tone(n[0]*2, .4, "sine", .1); }, n[1]); }); }
+function sad(){ tone(392, .4, "triangle", .3, 370); setTimeout(function(){ tone(349, .4, "triangle", .3, 330); }, 380); setTimeout(function(){ tone(311, .9, "triangle", .3, 260); }, 760); }
+function drumRoll(){
+  var alive = true, flip = false;
+  (function tick(){ if (!alive) return; flip = !flip; snare(flip ? .55 : .48); setTimeout(tick, 26); })();
+  return function(){ alive = false; };
+}
+function vib(p){ if (navigator.vibrate) navigator.vibrate(p); }
+
+/* ===== 演出ヘルパー ===== */
+function tease(text){ $("tease").innerHTML = text.split("").map(function(ch, i){ return '<span style="animation-delay:' + i*40 + 'ms">' + ch + '</span>'; }).join(""); }
+function beat(){ var p = $("pulse"); p.classList.remove("go"); void p.offsetWidth; p.classList.add("go"); heart(); vib(60); }
+function countShow(n){ var c = $("count"); c.textContent = n; c.classList.remove("go"); void c.offsetWidth; c.classList.add("go"); tone(880, .12, "square", .15); }
+function later(ms, fn){ return new Promise(function(r){ setTimeout(function(){ fn && fn(); r(); }, ms); }); }
+
+/* ===== 照合 ===== */
+function check(){
+  if (busy) return;
+  var raw = $("t").value.replace(/[０-９]/g, function(c){ return String.fromCharCode(c.charCodeAt(0) - 65248); });
+  var v = parseInt(raw, 10);
+  if (isNaN(v)) { $("res").innerHTML = '<div class="err">番号を入力してください</div>'; return; }
+  busy = true; $("t").blur(); if (soundOn) ctx();
+  var isWin = WIN.has(v);
+
+  // 初期化
+  $("myNo").textContent = v;
+  $("box").className = "box s1"; $("box").style.display = "";
+  $("final").className = "final"; $("close").className = "close";
+  $("stage").classList.remove("fast"); $("stage").classList.add("show");
+  tease("結果は…");
+
+  // ① 心拍（だんだん速く）
+  var gaps = [900, 800, 700, 600, 500];
+  var p = later(300);
+  gaps.forEach(function(g, i){ p = p.then(function(){ return later(g, beat); }); });
+  p = p.then(function(){ return later(0, function(){ tease("ドキドキ…"); $("box").className = "box s2"; }); });
+  // ② ドラムロール＋カウントダウン
+  var stopRoll;
+  p = p.then(function(){ return later(200, function(){ stopRoll = drumRoll(); $("stage").classList.add("fast"); }); })
+   .then(function(){ return later(700, function(){ countShow(3); }); })
+   .then(function(){ return later(900, function(){ countShow(2); $("box").className = "box s3"; vib(200); }); })
+   .then(function(){ return later(900, function(){ countShow(1); tease("せーのっ！"); vib(300); }); })
+  // ③ 溜め（一瞬の静寂）
+   .then(function(){ return later(900, function(){ stopRoll(); $("tease").innerHTML = ""; $("box").className = "box"; }); })
+   .then(function(){ return later(isWin ? 700 : 500); })
+  // ④ 開封
+   .then(function(){ return later(0, function(){ $("box").className = "box open"; }); })
+   .then(function(){ return later(450, function(){
+      $("box").style.display = "none"; $("myNo").parentNode.style.visibility = "hidden";
+      var f = $("final");
+      if (isWin) {
+        var fl = $("flash"); fl.classList.remove("go"); void fl.offsetWidth; fl.classList.add("go");
+        crash(); setTimeout(fanfare, 200);
+        f.className = "final win show";
+        f.innerHTML = '<div class="t2">CONGRATULATIONS!</div><span class="num">' + v + '</span><div class="t1">🎊 当選 🎊</div><div class="t2">おめでとうございます！</div>';
+        celebrate(); vib([100, 60, 100, 60, 400]);
+        $("res").innerHTML = '<div class="mini win">🎉 ' + v + ' は当選です！</div>';
+      } else {
+        sad();
+        f.className = "final lose show";
+        f.innerHTML = '<span class="num">' + v + '</span><div class="t1">残念…ハズレです</div><div class="t2">ご参加ありがとうございました</div>';
+        $("res").innerHTML = '<div class="mini lose">' + v + ' はハズレでした</div>';
+      }
+      $("close").className = "close show";
+    }); });
+}
+$("b").onclick = check;
+$("t").addEventListener("keydown", function(e){ if (e.key === "Enter") check(); });
+$("t").addEventListener("input", function(){ $("res").innerHTML = HINT; });
+$("close").onclick = function(){
+  $("stage").classList.remove("show"); $("myNo").parentNode.style.visibility = "";
+  busy = false;
+};
+$("snd").onclick = function(){ soundOn = !soundOn; this.textContent = soundOn ? "🔊 音：ON" : "🔇 音：OFF"; };
+
+/* ===== 紙吹雪 ===== */
+var c = $("fx"), x = c.getContext("2d"), P = [], W, H, D = window.devicePixelRatio || 1;
+function size(){ W = innerWidth; H = innerHeight; c.width = W * D; c.height = H * D; x.setTransform(D,0,0,D,0,0); }
+size(); addEventListener("resize", size);
+function rnd(a, b){ return a + Math.random() * (b - a); }
+function shoot(px, py, dir, n){
+  for (var i = 0; i < (n || 80); i++) {
+    var a = -Math.PI/2 + dir * rnd(.15, .7), s = rnd(10, 20);
+    P.push({x:px, y:py, vx:Math.cos(a)*s, vy:Math.sin(a)*s, w:rnd(6,12), h:rnd(4,8), r:rnd(0,6), vr:rnd(-.3,.3),
+            c:COLORS[(Math.random()*COLORS.length)|0], life:rnd(120,190)});
+  }
+}
+function celebrate(){
+  shoot(0, H, 1); shoot(W, H, -1);
+  setTimeout(function(){ shoot(W/2, H*.55, 0, 100); }, 300);
+  setTimeout(function(){ shoot(0, H, 1, 60); shoot(W, H, -1, 60); }, 900);
+}
+(function loop(){
+  x.clearRect(0, 0, W, H);
+  P = P.filter(function(p){ return p.life > 0 && p.y < H + 30; });
+  P.forEach(function(p){
+    p.vx *= .985; p.vy = p.vy * .985 + .28; p.x += p.vx; p.y += p.vy; p.r += p.vr; p.life--;
+    x.globalAlpha = Math.min(1, p.life / 40);
+    x.save(); x.translate(p.x, p.y); x.rotate(p.r); x.fillStyle = p.c;
+    x.fillRect(-p.w/2, -p.h/2, p.w, p.h * Math.abs(Math.cos(p.r*2))); x.restore();
+  });
+  x.globalAlpha = 1;
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
